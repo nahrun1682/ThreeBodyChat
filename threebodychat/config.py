@@ -2,4 +2,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+DISCORD_TOKEN_MAID = os.getenv('DISCORD_TOKEN_MAID')
+DISCORD_TOKEN_MASTER = os.getenv('DISCORD_TOKEN_MASTER')
+DISCORD_TOKEN_ORCHESTRATOR = os.getenv('DISCORD_TOKEN_ORCHESTRATOR')

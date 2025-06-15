@@ -26,4 +26,4 @@ async def on_message(message):
         await message.channel.send(answer)
 
 # Bot起動
-client.run(config.DISCORD_TOKEN)
+client.run(config.DISCORD_TOKEN_MAID)
