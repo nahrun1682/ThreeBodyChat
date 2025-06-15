@@ -1,42 +1,41 @@
 import discord
 import config
 import random
+import time
+import os
+import asyncio
 
-# DiscordのBotがどのイベントを受け取るかを設定するオブジェクト
-intents = discord.Intents.default()
-# メッセージ関連のイベント（on_messageなど）を受け取るためにTrueにする
-intents.messages = True
-
-# intentsを指定してClientを作成
-client = discord.Client(intents=intents)
-
-# ランダム返答リスト（例）
-REPLIES = [
-    "さすがですね！",
-    "知らなかったです！",
-    "すごいですね！",
-    "センスが違いますね！",
-    "そうなんですか？"
-]
+client = discord.Client(intents=discord.Intents.all())
 
 @client.event
-# Bot起動時に呼び出される関数
 async def on_ready():
-    print("Ready!")
-    
-@client.event
-async def on_message(message):
-    # Bot自身のメッセージには反応しない
-    if message.author == client.user:
-        return
+    print("Master Ready!")
 
-    # メンションされたとき
-    if client.user in message.mentions:
-        await message.channel.send(random.choice(REPLIES))
-        return
+# --- ここがキュー監視の常駐タスク ---
+async def background_task():
+    await client.wait_until_ready()  # Discordログイン完了まで待機
+    while not client.is_closed():
+        # 毎回「master_queue.txt」が存在するかチェック
+        if os.path.exists("master_queue.txt"):
+            # ファイルを全読み込み
+            with open("master_queue.txt", "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            # キューをクリア（空ファイルにする）
+            open("master_queue.txt", "w").close()
+            # すべての指示を処理
+            for line in lines:
+                channel_id, user_id, user_msg = line.strip().split("|")
+                channel = client.get_channel(int(channel_id))
+                if channel:
+                    response = random.choice(["鹿だな", "やっぱ鹿だな"])
+                    await channel.send(response)
+        # --- ここが「監視間隔」 ----
+        await asyncio.sleep(config.MONITOR_INTERVAL)  # 監視間隔で待機
 
-    # メンションされていなくても返答
-    await message.channel.send(random.choice(REPLIES))
+# discord.py v2.x以降の推奨: setup_hookでタスク登録
+class MasterClient(discord.Client):
+    async def setup_hook(self):
+        self.bg_task = self.loop.create_task(background_task())
 
-# Botを起動
+client = MasterClient(intents=discord.Intents.all())
 client.run(config.DISCORD_TOKEN_MASTER)

@@ -2,6 +2,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+
 DISCORD_TOKEN_MAID = os.getenv('DISCORD_TOKEN_MAID')
 DISCORD_TOKEN_MASTER = os.getenv('DISCORD_TOKEN_MASTER')
 DISCORD_TOKEN_ORCHESTRATOR = os.getenv('DISCORD_TOKEN_ORCHESTRATOR')
+
+MONITOR_INTERVAL = 0.5 

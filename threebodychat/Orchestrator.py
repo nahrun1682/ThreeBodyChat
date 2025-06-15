@@ -1,9 +1,22 @@
-# threebodychat/Orchestrator.py
-
 import discord
 import config
 import random
+import os
+import time
+# OrchestratorはMaidとMasterのどちらが応答するかを決定し、キューに書き込む役割を持つ
+import asyncio
 
+# ランダムにMaidかMasterを割り振る関数
+def assign_responder():
+    return random.choice(["Maid", "Master"])
+
+# キューに書き込む関数
+def write_to_queue(responder, channel_id, user_id, message_content):
+    filename = "maid_queue.txt" if responder == "Maid" else "master_queue.txt"
+    with open(filename, "a", encoding="utf-8") as f:
+        f.write(f"{channel_id}|{user_id}|{message_content}\n")
+        
+        
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 
@@ -13,29 +26,22 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
-        return
-
-    # テスト用：自分の名前に反応しない・他botのメッセージにも反応しない
+    # Bot自身や他Botのメッセージには反応しない
     if message.author.bot:
         return
 
-    # ランダムにMaidかMasterを選ぶ
-    responder = random.choice(["Maid", "Master"])
+    # ご主人様（ユーザー）の発言を受信
+    # （メンション不要、普通の発言すべてに反応）
 
-    if responder == "Maid":
-        responses = [
-            "ふふ、ご主人様、それは素敵な問いですわね✨",
-            "おや、これは…興味深いですわ。私、お手伝いしてよろしいかしら？",
-        ]
-    else:
-        responses = [
-            "それは論理的に説明できるはずだ。",
-            "君の問いには一考の価値がある。少し待ってくれ。",
-        ]
+    # MaidかMasterどちらが返答するかをランダムに決定
+    responder = assign_responder()
+    print(f"割り振り: {responder} → {message.content}")
 
-    reply = random.choice(responses)
-    await message.channel.send(f"**[{responder}]** {reply}")
+    # channel.id, user.id, メッセージ内容を、割り振ったBot用のキューファイルに追記
+    write_to_queue(responder, message.channel.id, message.author.id, message.content)
 
-# Bot起動
-client.run(config.DISCORD_TOKEN_ORCHESTRATOR)
+    # Orchestrator自身は何もDiscordに発言せず、ただ舞台裏で采配するだけ
+
+# Orchestrator用のBotトークンで起動
+if __name__ == "__main__":
+    client.run(config.DISCORD_TOKEN_ORCHESTRATOR)
