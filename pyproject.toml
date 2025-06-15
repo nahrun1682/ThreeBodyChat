@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "threebodychat"
+version = "0.1.0"
+description = ""
+authors = ["nahrun1682 <kawamura100995@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+openai = "^1.86.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
