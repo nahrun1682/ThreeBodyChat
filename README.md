@@ -23,14 +23,29 @@ ThreeBodyChat/
 ├── pyproject.toml
 ├── poetry.lock
 ├── README.md
-├── tests/
+├── run_all.sh                # Bot一括起動・多重起動防止スクリプト
+├── logs/
+│   └── threebodychat.log     # 全Bot共通のログファイル
+├── tests/                    # pytest用テストコード
+│   ├── test_orchestrator.py
+│   ├── test_Maid.py
+│   └── test_Master.py
 └── threebodychat/
     ├── __init__.py
-    ├── Maid.py      # メイドBotの実装
-    ├── Master.py    # 師匠Botの実装予定
-    └── config.py    # Discordトークンなどの設定
+    ├── Maid.py               # メイドBotの実装
+    ├── Master.py             # 師匠Botの実装
+    ├── Orchestrator.py       # 司令塔Bot（制御・分配・Redis仲介）
+    └── config.py             # Discordトークン・設定
 ```
-　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+
+- **Orchestrator.py** … ユーザー発言の受信・Bot割り振り・Redis制御の中枢
+- **Maid.py / Master.py** … それぞれ独立したBot実装。Redisキュー監視・返答
+- **run_all.sh** … Bot多重起動防止＆一括起動用
+- **logs/** … すべてのBotの動作ログを1ファイルに集約
+- **tests/** … pytestによる自動テスト一式
+
+---
+
 ## Redisについて
 
 **Redis**は、インメモリ型の高速なデータストア（NoSQLデータベース）です。
@@ -91,9 +106,9 @@ Orchestratorがユーザー発言をRedisキューに書き込み、Maid/Master 
 
 各テストには初心者向けの詳細なコメントも記載しています。
 
-## 🛠 RedisによるマルチBot制御の仕組み（初心者向け解説）
+## 🛠 RedisによるマルチBot制御の仕組み
 
-ThreeBodyChatでは、**Redis**という高速なデータベースを「Bot同士の手紙箱（メッセージ置き場）」として使っています。
+ThreeBodyChatでは、Bot間のやりとりや役割分担を**Redisのキュー機能**で制御しています。
 
 ### ざっくりイメージ
 
