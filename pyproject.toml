@@ -11,6 +11,7 @@ openai = "^1.86.0"
 langchain = "^0.3.25"
 dotenv = "^0.9.9"
 discord = "^2.3.2"
+redis = "^6.2.0"
 
 
 [tool.poetry.group.dev.dependencies]

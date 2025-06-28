@@ -31,6 +31,35 @@ ThreeBodyChat/
     └── config.py    # Discordトークンなどの設定
 ```
 
+## Redisについて
+
+**Redis**は、インメモリ型の高速なデータストア（NoSQLデータベース）です。
+本プロジェクトでは、Bot間のメッセージキューとしてRedisを利用しています。
+Orchestratorがユーザー発言をRedisキューに書き込み、Maid/Master Botがそのキューを監視して返答する設計です。
+
+### Redisの導入・起動方法（Ubuntu/WSLの場合）
+
+1. Redisのインストール
+   ```sh
+   sudo apt update
+   sudo apt install redis-server
+   ```
+
+2. Redisサーバーの起動
+   ```sh
+   sudo service redis-server start
+   ```
+
+3. 動作確認
+   ```sh
+   redis-cli ping
+   ```
+   `PONG` と返ってくればOKです。
+
+> DockerでRedisを使いたい場合は
+> `docker run -d -p 6379:6379 --name redis redis`
+> でも起動できます。
+
 ## 参考文献
 - [Discord Botのつくりかた](https://qiita.com/shown_it/items/6e7fb7777f45008e0496)
 - [discord.py入門](https://qiita.com/float_py/items/f2fd2f56f9536520b36a)
