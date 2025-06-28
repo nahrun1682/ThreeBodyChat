@@ -43,10 +43,20 @@ async def background_task():
             logging.info(f"maid_queue item split: channel_id={channel_id}, user_id={user_id}, user_msg={user_msg}")
             channel = client.get_channel(int(channel_id))
             if channel:
-                parts = user_msg.split("|", 1)
-                user_question = parts[0]
-                prev_bot_reply = parts[1] if len(parts) > 1 else None
-                logging.info(f"maid_queue message parts: user_question={user_question}, prev_bot_reply={prev_bot_reply}")
+                # request_idを取り出す
+                msg_parts = user_msg.split("|", 2)
+                if len(msg_parts) == 3:
+                    # 後手: request_id|user_question|prev_bot_reply
+                    request_id, user_question, prev_bot_reply = msg_parts
+                elif len(msg_parts) == 2:
+                    # 先手: request_id|user_question
+                    request_id, user_question = msg_parts
+                    prev_bot_reply = None
+                else:
+                    logging.error(f"maid_queue message parse error: {msg_parts}")
+                    await asyncio.sleep(config.MONITOR_INTERVAL)
+                    continue
+                logging.info(f"maid_queue message parts: request_id={request_id}, user_question={user_question}, prev_bot_reply={prev_bot_reply}")
 
                 if prev_bot_reply:
                     # 後手の場合：ユーザー:質問 / 先手:先手の生返答 / ランダム返答
@@ -55,8 +65,8 @@ async def background_task():
                     logging.info(f"maid reply (後手): {response}")
                     await channel.send(response)
                     # Orchestrator用には「maid_reply」（生返答）のみを保存
-                    r.set(f"reply_maid_{channel.id}", maid_reply)
-                    logging.info(f"Orchestrator用に保存: reply_maid_{channel.id}={maid_reply}")
+                    r.set(f"reply_maid_{request_id}", maid_reply)
+                    logging.info(f"Orchestrator用に保存: reply_maid_{request_id}={maid_reply}")
                 else:
                     # 先手の場合：ユーザー:質問 / ランダム返答
                     maid_reply = random.choice(['さすがですわ！', 'お手伝いしましょうか？'])
@@ -64,8 +74,8 @@ async def background_task():
                     logging.info(f"maid reply (先手): {response}")
                     await channel.send(response)
                     # Orchestrator用には「maid_reply」（生返答）のみを保存
-                    r.set(f"reply_maid_{channel.id}", maid_reply)
-                    logging.info(f"Orchestrator用に保存: reply_maid_{channel.id}={maid_reply}")
+                    r.set(f"reply_maid_{request_id}", maid_reply)
+                    logging.info(f"Orchestrator用に保存: reply_maid_{request_id}={maid_reply}")
         except Exception as e:
             logging.error(f"maid_queueの処理中にエラー: {e}")
         await asyncio.sleep(config.MONITOR_INTERVAL)  # 監視間隔で待機

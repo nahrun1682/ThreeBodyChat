@@ -1,5 +1,6 @@
 import redis  # Redisサーバーに接続するためのライブラリ
 import random  # ランダムな返答を選ぶための標準ライブラリ
+import uuid
 
 # Redisのmaster_queue_testにメッセージを書き込み、正しく取り出せるかをテスト
 def test_master_queue_redis():
@@ -16,6 +17,17 @@ def test_master_queue_redis():
     # 取り出した内容が正しいかチェック
     assert item == test_message
     # テスト後にキューを削除
+    r.delete(queue_name)
+
+def test_master_queue_redis_request_id():
+    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    queue_name = "master_queue_test"
+    request_id = str(uuid.uuid4())
+    test_message = f"123|456|{request_id}|テストメッセージ"
+    r.delete(queue_name)
+    r.rpush(queue_name, test_message)
+    item = r.lpop(queue_name)
+    assert item == test_message
     r.delete(queue_name)
 
 # Masterの返答がランダムで2種類とも返るかをテスト
@@ -58,3 +70,13 @@ def test_master_response_extra_delimiter():
     resp = make_master_response(user_msg)
     # 2つ目以降はprev_bot_replyに含まれる
     assert resp.startswith("ユーザー:こんにちは / 先手:さすがですわ！|余分 / ")
+
+def test_master_response_with_request_id():
+    request_id = str(uuid.uuid4())
+    user_msg = f"{request_id}|こんにちは"
+    resp = make_master_response(user_msg.split("|",1)[1])  # make_master_responseはuser_question|prev_bot_reply形式
+    assert resp.startswith("ユーザー:こんにちは / ")
+    assert "/ 先手:" not in resp
+    user_msg2 = f"{request_id}|こんにちは|さすがですわ！"
+    resp2 = make_master_response("こんにちは|さすがですわ！")
+    assert resp2.startswith("ユーザー:こんにちは / 先手:さすがですわ！") or resp2.startswith("ユーザー:こんにちは / 先手:お手伝いしましょうか？") or resp2.startswith("ユーザー:こんにちは / 先手:やっぱ鹿だな")

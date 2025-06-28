@@ -1,6 +1,6 @@
 import redis  # Redisサーバーに接続するためのライブラリ
 import random  # ランダムな返答を選ぶための標準ライブラリ
-import logging  # ロギング用ライブラリ
+import uuid
 
 # Redisのmaid_queue_testにメッセージを書き込み、正しく取り出せるかをテスト
 def test_maid_queue_redis():
@@ -19,31 +19,29 @@ def test_maid_queue_redis():
     # テスト後にキューを削除
     r.delete(queue_name)
 
-def make_maid_response(user_msg, channel):
+def test_maid_queue_redis_request_id():
+    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    queue_name = "maid_queue_test"
+    request_id = str(uuid.uuid4())
+    test_message = f"123|456|{request_id}|テストメッセージ"
+    r.delete(queue_name)
+    r.rpush(queue_name, test_message)
+    item = r.lpop(queue_name)
+    assert item == test_message
+    r.delete(queue_name)
+
+def make_maid_response(user_msg):
     """
     Maid.pyのロジックを模したテスト用関数。
     user_msg: str, 例 "こんにちは" または "こんにちは|さすがですわ！"
     """
-    r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     parts = user_msg.split("|", 1)
     user_question = parts[0]
     prev_bot_reply = parts[1] if len(parts) > 1 else None
     if prev_bot_reply:
-        # 後手の場合
-        maid_reply = random.choice(['さすがですわ！', 'お手伝いしましょうか？'])
-        response = f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {maid_reply}"
-        channel.send(response)
-        # Orchestrator用には「maid_reply」だけを保存
-        r.set(f"reply_maid_{channel.id}", maid_reply)
-        logging.info(f"返答を送信・保存: ユーザー:{user_question} / 先手:{prev_bot_reply} / {maid_reply}")
+        return f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {random.choice(['さすがですわ！', 'お手伝いしましょうか？'])}"
     else:
-        # 先手の場合
-        maid_reply = random.choice(['さすがですわ！', 'お手伝いしましょうか？'])
-        response = f"ユーザー:{user_question} / {maid_reply}"
-        channel.send(response)
-        # Orchestrator用には「maid_reply」だけを保存
-        r.set(f"reply_maid_{channel.id}", maid_reply)
-        logging.info(f"返答を送信・保存: ユーザー:{user_question} / {maid_reply}")
+        return f"ユーザー:{user_question} / {random.choice(['さすがですわ！', 'お手伝いしましょうか？'])}"
 
 # 1. 先手Botとしての動作
 def test_maid_first_response():
@@ -73,3 +71,14 @@ def test_no_nested_reply():
     resp = make_maid_response(user_msg)
     assert resp.count("先手:") == 1
     assert "先手:ユーザー:" not in resp
+
+def test_maid_response_with_request_id():
+    request_id = str(uuid.uuid4())
+    user_msg = f"{request_id}|こんにちは"
+    resp = make_maid_response(user_msg.split("|",1)[1])  # make_maid_responseはuser_question|prev_bot_reply形式
+    assert resp.startswith("ユーザー:こんにちは / ")
+    assert "/ 先手:" not in resp
+    user_msg2 = f"{request_id}|こんにちは|さすがですわ！"
+    # 2つ目以降はprev_bot_replyに含まれる
+    resp2 = make_maid_response("こんにちは|さすがですわ！")
+    assert resp2.startswith("ユーザー:こんにちは / 先手:さすがですわ！")

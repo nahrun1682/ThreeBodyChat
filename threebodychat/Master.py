@@ -41,37 +41,46 @@ async def background_task():
             continue
         empty_count = 0  # 何か取得できたらリセット
         logging.info(f"master_queue lpop: {item}")
-        if item:
-            try:
-                channel_id, user_id, user_msg = item.strip().split("|", 2)
-                logging.info(f"master_queue item split: channel_id={channel_id}, user_id={user_id}, user_msg={user_msg}")
-                channel = client.get_channel(int(channel_id))
-                if channel:
-                    parts = user_msg.split("|", 1)
-                    user_question = parts[0]
-                    prev_bot_reply = parts[1] if len(parts) > 1 else None
-                    logging.info(f"master_queue message parts: user_question={user_question}, prev_bot_reply={prev_bot_reply}")
+        try:
+            channel_id, user_id, user_msg = item.strip().split("|", 2)
+            logging.info(f"master_queue item split: channel_id={channel_id}, user_id={user_id}, user_msg={user_msg}")
+            channel = client.get_channel(int(channel_id))
+            if channel:
+                # request_idを取り出す
+                msg_parts = user_msg.split("|", 2)
+                if len(msg_parts) == 3:
+                    # 後手: request_id|user_question|prev_bot_reply
+                    request_id, user_question, prev_bot_reply = msg_parts
+                elif len(msg_parts) == 2:
+                    # 先手: request_id|user_question
+                    request_id, user_question = msg_parts
+                    prev_bot_reply = None
+                else:
+                    logging.error(f"master_queue message parse error: {msg_parts}")
+                    await asyncio.sleep(config.MONITOR_INTERVAL)
+                    continue
+                logging.info(f"master_queue message parts: request_id={request_id}, user_question={user_question}, prev_bot_reply={prev_bot_reply}")
 
-                    if prev_bot_reply:
-                        # 後手の場合：ユーザー:質問 / 先手:先手の生返答 / ランダム返答
-                        master_reply = random.choice(['鹿だな', 'やっぱ鹿だな'])
-                        response = f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {master_reply}"
-                        logging.info(f"master reply (後手): {response}")
-                        await channel.send(response)
-                        # Orchestrator用には「master_reply」（生返答）のみを保存
-                        r.set(f"reply_master_{channel.id}", master_reply)
-                        logging.info(f"Orchestrator用に保存: reply_master_{channel.id}={master_reply}")
-                    else:
-                        # 先手の場合：ユーザー:質問 / ランダム返答
-                        master_reply = random.choice(['鹿だな', 'やっぱ鹿だな'])
-                        response = f"ユーザー:{user_question} / {master_reply}"
-                        logging.info(f"master reply (先手): {response}")
-                        await channel.send(response)
-                        # Orchestrator用には「master_reply」（生返答）のみを保存
-                        r.set(f"reply_master_{channel.id}", master_reply)
-                        logging.info(f"Orchestrator用に保存: reply_master_{channel.id}={master_reply}")
-            except Exception as e:
-                logging.error(f"master_queueの処理中にエラー: {e}")
+                if prev_bot_reply:
+                    # 後手の場合：ユーザー:質問 / 先手:先手の生返答 / ランダム返答
+                    master_reply = random.choice(['鹿だな', 'やっぱ鹿だな'])
+                    response = f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {master_reply}"
+                    logging.info(f"master reply (後手): {response}")
+                    await channel.send(response)
+                    # Orchestrator用には「master_reply」（生返答）のみを保存
+                    r.set(f"reply_master_{request_id}", master_reply)
+                    logging.info(f"Orchestrator用に保存: reply_master_{request_id}={master_reply}")
+                else:
+                    # 先手の場合：ユーザー:質問 / ランダム返答
+                    master_reply = random.choice(['鹿だな', 'やっぱ鹿だな'])
+                    response = f"ユーザー:{user_question} / {master_reply}"
+                    logging.info(f"master reply (先手): {response}")
+                    await channel.send(response)
+                    # Orchestrator用には「master_reply」（生返答）のみを保存
+                    r.set(f"reply_master_{request_id}", master_reply)
+                    logging.info(f"Orchestrator用に保存: reply_master_{request_id}={master_reply}")
+        except Exception as e:
+            logging.error(f"master_queueの処理中にエラー: {e}")
         await asyncio.sleep(config.MONITOR_INTERVAL)  # 監視間隔で待機
 
 # discord.py v2.x以降の推奨: setup_hookでタスク登録

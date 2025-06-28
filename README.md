@@ -91,45 +91,74 @@ Orchestratorがユーザー発言をRedisキューに書き込み、Maid/Master 
 
 各テストには初心者向けの詳細なコメントも記載しています。
 
-## 🛠 RedisによるマルチBot制御の仕組み
+## 🛠 RedisによるマルチBot制御の仕組み（初心者向け解説）
 
-ThreeBodyChatでは、Bot間のやりとりや役割分担を**Redisのキュー機能**で制御しています。
+ThreeBodyChatでは、**Redis**という高速なデータベースを「Bot同士の手紙箱（メッセージ置き場）」として使っています。
 
-### 制御フローの概要
+### ざっくりイメージ
 
-1. **Orchestrator（司令塔Bot）**
-   - ユーザーのDiscord発言を受信
-   - どちらのBot（Maid/Master）が返答するかをランダムで決定
-   - Redisの該当キュー（maid_queue/master_queue）に `rpush` で「channel_id|user_id|message_content」を追加
-2. **Maid / Master Bot**
-   - それぞれ自分用のRedisキュー（maid_queue/master_queue）を `lpop` で定期監視
-   - メッセージがあれば、内容をパースしてDiscordチャンネルに返答
+- Orchestrator（司令塔Bot）が「ユーザー発言」を受け取る
+- どちらのBot（Maid/Master）が先に返事するかを決める
+- Redisのキュー（例: maid_queue, master_queue）に「手紙」を入れる
+- Maid/Masterは自分宛てのキューを定期的にチェックし、手紙が来ていたら返事を返す
+- 返事もまたRedisに一時保存され、Orchestratorがそれを受け取って次のBotに渡す
 
-### ポイント
-- 各Botは**独立プロセス・独立トークン**で動作し、直接通信はしません
-- Orchestrator→Redis→Botの**一方向制御**で疎結合・スケーラブルな設計
-- Redisを使うことで、リアルタイムかつ軽量なメッセージパスを実現
+### 具体的な流れ（request_id方式）
 
-### 図式イメージ
+1. **ユーザーがDiscordで発言**
+2. **Orchestrator**が「どちらが先手か」をランダムで決定し、
+   - 先手Botのキューに「channel_id|user_id|request_id|ユーザー発言」を入れる
+   - request_idは「この会話だけの番号（例: UUID）」で、やりとりの混線を防ぐために必須
+3. **先手Bot（Maid/Master）**は自分のキューを監視し、
+   - 受け取ったらrequest_idとユーザー発言を分解
+   - 返答を考えてDiscordに送信
+   - 返答（生返答）を`reply_maid_{request_id}`や`reply_master_{request_id}`としてRedisに保存
+4. **Orchestrator**はその返答をRedisから受け取り、
+   - 後手Botのキューに「channel_id|user_id|request_id|ユーザー発言|先手Bot返答」を入れる
+5. **後手Bot**は自分のキューを監視し、
+   - 受け取ったらrequest_id・ユーザー発言・先手Bot返答を分解
+   - それを元に返答を考えてDiscordに送信
+   - 返答（生返答）を`reply_maid_{request_id}`や`reply_master_{request_id}`としてRedisに保存
+
+#### 図式イメージ（request_id方式）
 
 ```
-[ユーザー] → [Orchestrator] → (maid_queue/master_queue in Redis) → [Maid/Master] → [Discordチャンネル]
+[ユーザー]
+   ↓
+[Orchestrator]
+   ↓  (maid_queue/master_queue in Redis)
+[先手Bot(Maid/Master)]
+   ↓  (reply_xxx_{request_id} in Redis)
+[Orchestrator]
+   ↓  (maid_queue/master_queue in Redis)
+[後手Bot(Maid/Master)]
+   ↓
+[Discordチャンネル]
 ```
 
-### ユーザー発言の受け渡し設計
-
-- Maid/Masterのどちらが先・後手になっても、**必ずユーザーの発言内容は両方のBotに渡されます**。
-- 先手Botには「ユーザー発言」のみが渡され、後手Botには「ユーザー発言＋先手Botの返答」が渡されます。
-- これにより、**どちらのBotもユーザーの発言内容を必ず取得でき、今後の関数設計で引数として自由に利用できます**。
-
-#### 例
+#### 例（Maidが先手の場合）
 1. ユーザー「こんにちは」
-2. OrchestratorがMaidを先手に選ぶ
-3. Maidには「こんにちは」が渡される
-4. Maidが返答した後、Masterには「こんにちは｜Maidの返答」が渡される
+2. Orchestratorがrequest_id=abc123を生成し、maid_queueに「...|abc123|こんにちは」を入れる
+3. Maidが「abc123|こんにちは」を受け取り、返答「さすがですわ！」を`reply_maid_abc123`に保存
+4. Orchestratorが`reply_maid_abc123`から返答を取得し、master_queueに「...|abc123|こんにちは|さすがですわ！」を入れる
+5. Masterが「abc123|こんにちは|さすがですわ！」を受け取り、返答「鹿だな」を`reply_master_abc123`に保存
 
-> どちらが先手・後手でも、**ユーザー発言は必ず両Botに伝わる**ため、  
-> Botの応答ロジックでユーザー発言を引数として利用できます。
+---
+
+### なぜrequest_idが必要？
+
+- 複数のユーザーや連投が同時に走っても「どの返答がどの会話のものか」を絶対に間違えないため
+- 1つの会話ごとに固有の番号（request_id）でやりとりを追跡することで、
+  返答の混線・重複・ズレを完全に防げます
+
+---
+
+### まとめ
+- Redisは「Bot同士の手紙箱」
+- 1会話ごとにrequest_idという番号を付けて、やりとりを確実に紐付け
+- どんなに同時に会話が走っても、返答がズレたり混ざったりしない
+
+---
 
 ## 参考文献
 - [Discord Botのつくりかた](https://qiita.com/shown_it/items/6e7fb7777f45008e0496)
