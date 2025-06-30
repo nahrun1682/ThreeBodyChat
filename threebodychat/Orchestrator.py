@@ -6,6 +6,11 @@ import redis
 import logging
 import os
 import uuid
+from prompts.prompt_orchestrator import get_orchestrator_prompt
+from pydantic import BaseModel, Field
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import AzureChatOpenAI
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -22,9 +27,50 @@ logging.basicConfig(
 # Redisに接続
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
-# ランダムにMaidかMasterを割り振る関数
-def assign_responder():
-    return random.choice(["Maid", "Master"])
+
+
+class ResponderChoice(BaseModel):
+    responder: str = Field(description="Who should respond, 'Maid' or 'Master'.")
+
+parser = PydanticOutputParser(pydantic_object=ResponderChoice)
+
+llm = AzureChatOpenAI(
+    openai_api_version=config.GPT_41MINI_CHAT_VERSION,
+    azure_deployment=config.GPT_41MINI_CHAT_MODEL,
+    azure_endpoint=config.GPT_41MINI_CHAT_ENDPOINT,
+    openai_api_key=config.GPT_41MINI_CHAT_KEY,
+    temperature=0.0,
+    max_tokens=100,
+)
+
+def assign_responder(user_msg=None):
+    """
+    ユーザー発言からLLMでMaid/Masterを判定
+    :param user_msg: ユーザーの発言（Noneの場合はランダム）
+    :return: 'Maid' または 'Master'
+    """
+    if not user_msg:
+        import random
+        choice = random.choice(["Maid", "Master"])
+        logging.info(f"assign_responder: user_msg=None → ランダム選択: {choice}")
+        return choice
+    prompt = get_orchestrator_prompt(user_msg, parser.get_format_instructions())
+    logging.info(f"assign_responder: LLM判定開始 user_msg='{user_msg}'")
+    # LLMに投げて判定
+    result = llm.invoke([{"role": "system", "content": prompt}])
+    # パース
+    try:
+        parsed = parser.invoke(result.content)
+        if isinstance(parsed, ResponderChoice):
+            logging.info(f"assign_responder: LLM判定結果: {parsed.responder}")
+            return parsed.responder
+    except Exception as e:
+        logging.warning(f"assign_responder LLM判定失敗: {e}")
+    # フォールバック
+    import random
+    choice = random.choice(["Maid", "Master"])
+    logging.info(f"assign_responder: フォールバックでランダム選択: {choice}")
+    return choice
 
 # Redisキューに書き込む関数
 def write_to_queue(queue_name, channel_id, user_id, message_content):
@@ -55,7 +101,7 @@ async def on_message(message):
     # 一意なリクエストIDを生成
     request_id = str(uuid.uuid4())
 
-    # どちらが先手かランダムで決定
+    # どちらが先手かOrchestratorで判定
     first = assign_responder()
     second = "Master" if first == "Maid" else "Maid"
     logging.info(f"先手: {first}, 後手: {second} → {user_msg}")

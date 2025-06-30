@@ -178,3 +178,4 @@ ThreeBodyChatでは、Bot間のやりとりや役割分担を**Redisのキュー
 ## 参考文献
 - [Discord Botのつくりかた](https://qiita.com/shown_it/items/6e7fb7777f45008e0496)
 - [discord.py入門](https://qiita.com/float_py/items/f2fd2f56f9536520b36a)
+- [langfuse cloud](https://us.cloud.langfuse.com/)
