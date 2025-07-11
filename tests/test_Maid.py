@@ -1,6 +1,8 @@
 import redis  # Redisサーバーに接続するためのライブラリ
 import random  # ランダムな返答を選ぶための標準ライブラリ
 import uuid
+from unittest.mock import patch, MagicMock
+from threebodychat.Maid import MaidBot
 
 # Redisのmaid_queue_testにメッセージを書き込み、正しく取り出せるかをテスト
 def test_maid_queue_redis():
@@ -72,13 +74,21 @@ def test_no_nested_reply():
     assert resp.count("先手:") == 1
     assert "先手:ユーザー:" not in resp
 
-def test_maid_response_with_request_id():
-    request_id = str(uuid.uuid4())
-    user_msg = f"{request_id}|こんにちは"
-    resp = make_maid_response(user_msg.split("|",1)[1])  # make_maid_responseはuser_question|prev_bot_reply形式
-    assert resp.startswith("ユーザー:こんにちは / ")
-    assert "/ 先手:" not in resp
-    user_msg2 = f"{request_id}|こんにちは|さすがですわ！"
-    # 2つ目以降はprev_bot_replyに含まれる
-    resp2 = make_maid_response("こんにちは|さすがですわ！")
-    assert resp2.startswith("ユーザー:こんにちは / 先手:さすがですわ！")
+
+
+def test_generate_reply_real_llm():
+    bot = MaidBot()
+    user_question = "お茶を淹れてください"
+    reply = bot.generate_reply(user_question, None)
+    print("Maidの返答（LLM実行）:", reply)
+    assert reply  # 空でなければOK
+
+def test_generate_reply_with_prev_bot_reply_real_llm():
+    bot = MaidBot()
+    user_question = "部屋を掃除してください"
+    prev_bot_reply = "お願いします"
+    reply = bot.generate_reply(user_question, prev_bot_reply)
+    print("Maidの返答（先手あり・LLM実行）:", reply)
+    assert reply  # 空でなければOK
+    # pytestでこのテストだけ実行するには:
+    # pytest tests/test_Maid.py -k "generate_reply"

@@ -53,13 +53,16 @@ class BaseBot(discord.Client):
                     # 返答生成
                     reply = self.generate_reply(user_question, prev_bot_reply)
                     if prev_bot_reply:
+                        #テスト用
                         # 後手Botの返答（ユーザー発言＋先手Bot返答＋自分の返答）
-                        response = f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {reply}"
-                        logging.info(f"{self.bot_name} reply (後手): {response}")
+                        # response = f"ユーザー:{user_question} / 先手:{prev_bot_reply} / {reply}"
+                        response = reply
+                        logging.info(f"{self.bot_name} reply (後手): {reply}")
                     else:
                         # 先手Botの返答（ユーザー発言＋自分の返答）
-                        response = f"ユーザー:{user_question} / {reply}"
-                        logging.info(f"{self.bot_name} reply (先手): {response}")
+                        # response = f"ユーザー:{user_question} / {reply}"
+                        response = reply
+                        logging.info(f"{self.bot_name} reply (先手): {reply}")
                     # Discordのメッセージ長制限（2000文字）対応
                     MAX_DISCORD_MSG_LEN = 2000
                     if len(response) > MAX_DISCORD_MSG_LEN:

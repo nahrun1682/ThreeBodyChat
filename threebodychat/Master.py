@@ -6,6 +6,7 @@ import redis
 import logging
 from threebodychat.BaseBot import BaseBot
 from langchain_openai import AzureChatOpenAI
+from prompts.prompt_master import get_master_systemPrompt
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -42,12 +43,16 @@ class MasterBot(BaseBot):
         )
         
     def generate_reply(self, user_question, prev_bot_reply):
-        # メイドらしいプロンプトを組み立て
-        prompt = f"あなたはみんなの師匠です。ユーザーの質問:「{user_question}」"
+        # マスターらしいプロンプトを組み立て
+        system_prompt = get_master_systemPrompt()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": f"ユーザーの質問:「{user_question}」"}
+        ]
         if prev_bot_reply:
-            prompt += f" 先手Bot(Maid)の返答:「{prev_bot_reply}」"
-        prompt += " 師匠らしい丁寧な日本語で返答してください。"
-        result = master_llm.invoke([{"role": "system", "content": prompt}])
+            messages.append({"role": "user", "content": f"先手Bot(Maid)の返答:「{prev_bot_reply}」"})
+        result = master_llm.invoke(messages)
+
         return result.content.strip()
 
 client = MasterBot()

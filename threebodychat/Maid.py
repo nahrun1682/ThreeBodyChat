@@ -6,6 +6,7 @@ import redis
 import logging
 from threebodychat.BaseBot import BaseBot
 from langchain_openai import AzureChatOpenAI
+from prompts.prompt_maid import get_maid_systemPrompt
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -42,11 +43,15 @@ class MaidBot(BaseBot):
         )
     def generate_reply(self, user_question, prev_bot_reply):
         # メイドらしいプロンプトを組み立て
-        prompt = f"あなたは上品なメイドです。ユーザーの質問:「{user_question}」"
+        system_prompt = get_maid_systemPrompt()
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": f"ユーザーの質問:「{user_question}」"}
+        ]
         if prev_bot_reply:
-            prompt += f" 先手Bot(Master)の返答:「{prev_bot_reply}」"
-        prompt += " メイドらしい丁寧な日本語で返答してください。"
-        result = maid_llm.invoke([{"role": "system", "content": prompt}])
+            messages.append({"role": "user", "content": f"先手Bot(Master)の返答:「{prev_bot_reply}」"})
+        result = maid_llm.invoke(messages)
+
         return result.content.strip()
 
 client = MaidBot()
@@ -60,3 +65,10 @@ async def maid_setup_hook():
 
 client.setup_hook = maid_setup_hook
 client.run(config.DISCORD_TOKEN_MAID)
+
+if __name__ == "__main__":
+    # MaidBotのインスタンスを作成してテスト質問からgenerate_replyを実行
+    client = MaidBot()
+    user_question = "お茶を淹れてください"
+    reply = client.generate_reply(user_question, "Masterの返答例：お茶は私は入れるの苦手なんだ")
+    print("Maidの返答:", reply)

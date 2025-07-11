@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import AzureChatOpenAI
+from langfuse.langchain import CallbackHandler
+from langfuse import Langfuse, get_client
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -43,6 +45,18 @@ llm = AzureChatOpenAI(
     max_tokens=100,
 )
 
+# Initialize Langfuse client with constructor arguments
+Langfuse(
+    public_key=config.LANGFUSE_PUBLIC_KEY,
+    secret_key=config.LANGFUSE_SECRET_KEY,
+    host=config.LANGFUSE_HOST_URL, # Optional: defaults to https://cloud.langfuse.com
+)
+# Get the configured client instance
+langfuse = get_client()
+
+# Initialize the Langfuse handler
+langfuse_handler_orchestrator = CallbackHandler()
+
 def assign_responder(user_msg=None):
     """
     ユーザー発言からLLMでMaid/Masterを判定
@@ -54,10 +68,15 @@ def assign_responder(user_msg=None):
         choice = random.choice(["Maid", "Master"])
         logging.info(f"assign_responder: user_msg=None → ランダム選択: {choice}")
         return choice
+    
     prompt = get_orchestrator_prompt(user_msg, parser.get_format_instructions())
     logging.info(f"assign_responder: LLM判定開始 user_msg='{user_msg}'")
+    
     # LLMに投げて判定
-    result = llm.invoke([{"role": "system", "content": prompt}])
+    result = llm.invoke(
+        [{"role": "system", "content": prompt}],
+        config = {"callbacks": [langfuse_handler_orchestrator]}
+    )
     # パース
     try:
         parsed = parser.invoke(result.content)
