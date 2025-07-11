@@ -206,3 +206,7 @@ __marimo__/
 #prompts
 /prompts/*
 !/prompts/.gitkeep
+
+#prompts
+/logs/*
+!/logs/.gitkeep
