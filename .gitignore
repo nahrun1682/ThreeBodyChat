@@ -204,4 +204,5 @@ __marimo__/
 *.ipynb
 
 #prompts
-prompts/*
+/prompts/*
+!/prompts/.gitkeep
