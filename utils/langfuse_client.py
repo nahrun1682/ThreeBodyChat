@@ -18,6 +18,8 @@ langfuse = get_client()  # 初回で環境変数または上記設定から認�
 # ③ LangChain 用ハンドラー生成
 handler = CallbackHandler()  # 引数不要ですわ:contentReference[oaicite:1]{index=1}
 
+print("▶️ Langfuse auth_check():", langfuse.auth_check())
+
 if __name__ == "__main__":
     # ✅ テスト認証チェック＆フラッシュ確認用スクリプト
     from langchain_core.messages import SystemMessage, HumanMessage

@@ -7,6 +7,7 @@ import logging
 from threebodychat.BaseBot import BaseBot
 from langchain_openai import AzureChatOpenAI
 from prompts.prompt_master import get_master_systemPrompt
+from utils.langfuse_client import handler as langfuse_handler
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -51,7 +52,14 @@ class MasterBot(BaseBot):
         ]
         if prev_bot_reply:
             messages.append({"role": "user", "content": f"先手Bot(Maid)の返答:「{prev_bot_reply}」"})
-        result = master_llm.invoke(messages)
+        
+        result = master_llm.invoke(
+            messages,
+            config={
+                "callbacks": [langfuse_handler],
+                # 必要であればタグも metadata 内に渡せます
+                "metadata": {"langfuse_tags": ["Master"]}
+            })
 
         return result.content.strip()
 

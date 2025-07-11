@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import AzureChatOpenAI
-from langfuse.langchain import CallbackHandler
-from langfuse import Langfuse, get_client
+from utils.langfuse_client import handler as langfuse_handler
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -46,18 +45,6 @@ llm = AzureChatOpenAI(
     max_tokens=100,
 )
 
-# Initialize Langfuse client with constructor arguments
-Langfuse(
-    public_key=config.LANGFUSE_PUBLIC_KEY,
-    secret_key=config.LANGFUSE_SECRET_KEY,
-    host=config.LANGFUSE_HOST_URL, # Optional: defaults to https://cloud.langfuse.com
-)
-# Get the configured client instance
-langfuse = get_client()
-
-# Initialize the Langfuse handler
-langfuse_handler_orchestrator = CallbackHandler()
-
 def assign_responder(user_msg=None):
     """
     ユーザー発言からLLMでMaid/Masterを判定
@@ -76,9 +63,12 @@ def assign_responder(user_msg=None):
     # LLMに投げて判定
     result = llm.invoke(
         [{"role": "system", "content": prompt}],
-        config = {"callbacks": [langfuse_handler_orchestrator]}
+        config={
+                "callbacks": [langfuse_handler],
+                # 必要であればタグも metadata 内に渡せます
+                "metadata": {"langfuse_tags": ["Orchestrator"]}
+            }
     )
-    langfuse.flush()
     # パース
     try:
         parsed = parser.invoke(result.content)
@@ -123,7 +113,7 @@ async def on_message(message):
     request_id = str(uuid.uuid4())
 
     # どちらが先手かOrchestratorで判定
-    first = assign_responder()
+    first = assign_responder(user_msg)
     second = "Master" if first == "Maid" else "Maid"
     logging.info(f"先手: {first}, 後手: {second} → {user_msg}")
 

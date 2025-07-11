@@ -7,6 +7,8 @@ import logging
 from threebodychat.BaseBot import BaseBot
 from langchain_openai import AzureChatOpenAI
 from prompts.prompt_maid import get_maid_systemPrompt
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.langfuse_client import handler as langfuse_handler
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -45,12 +47,20 @@ class MaidBot(BaseBot):
         # メイドらしいプロンプトを組み立て
         system_prompt = get_maid_systemPrompt()
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": f"ユーザーの質問:「{user_question}」"}
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=f"ユーザーの質問:「{user_question}」")
         ]
+        
         if prev_bot_reply:
-            messages.append({"role": "user", "content": f"先手Bot(Master)の返答:「{prev_bot_reply}」"})
-        result = maid_llm.invoke(messages)
+            messages.append(HumanMessage(content=f"先手Bot(Master)の返答:「{prev_bot_reply}」"))
+        
+        result = maid_llm.invoke(
+            messages,
+            config={
+                "callbacks": [langfuse_handler],
+                # 必要であればタグも metadata 内に渡せます
+                "metadata": {"langfuse_tags": ["Maid"]}
+            })
 
         return result.content.strip()
 
