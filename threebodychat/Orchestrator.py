@@ -39,6 +39,7 @@ parser = PydanticOutputParser(pydantic_object=ResponderChoice)
 llm = AzureChatOpenAI(
     openai_api_version=config.GPT_41MINI_CHAT_VERSION,
     azure_deployment=config.GPT_41MINI_CHAT_MODEL,
+    model=config.GPT_41MINI_CHAT_MODEL,
     azure_endpoint=config.GPT_41MINI_CHAT_ENDPOINT,
     openai_api_key=config.GPT_41MINI_CHAT_KEY,
     temperature=0.0,
@@ -77,6 +78,7 @@ def assign_responder(user_msg=None):
         [{"role": "system", "content": prompt}],
         config = {"callbacks": [langfuse_handler_orchestrator]}
     )
+    langfuse.flush()
     # パース
     try:
         parsed = parser.invoke(result.content)
