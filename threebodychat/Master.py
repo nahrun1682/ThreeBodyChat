@@ -8,6 +8,7 @@ from threebodychat.BaseBot import BaseBot
 from langchain_openai import AzureChatOpenAI
 from prompts.prompt_master import get_master_systemPrompt
 from utils.langfuse_client import handler as langfuse_handler
+from utils.llm_factory import create_azure_llm
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -22,14 +23,8 @@ logging.basicConfig(
 
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
-master_llm = AzureChatOpenAI(
-    openai_api_version=config.GPT_41MINI_CHAT_VERSION,
-    azure_deployment=config.GPT_41MINI_CHAT_MODEL,
-    azure_endpoint=config.GPT_41MINI_CHAT_ENDPOINT,
-    openai_api_key=config.GPT_41MINI_CHAT_KEY,
-    temperature=0.7,
-    max_tokens=2000,
-)
+master_model = 'o4-mini'  # Master用のモデル名
+master_llm = create_azure_llm(model_name=master_model)
 
 class MasterBot(BaseBot):
     def __init__(self):

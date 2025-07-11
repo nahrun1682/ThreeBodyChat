@@ -12,7 +12,10 @@ GPT_41MINI_CHAT_KEY = os.getenv('GPT_41MINI_CHAT_KEY')
 GPT_41MINI_CHAT_ENDPOINT = os.getenv('GPT_41MINI_CHAT_ENDPOINT')
 GPT_41MINI_CHAT_MODEL = os.getenv('GPT_41MINI_CHAT_MODEL')
 GPT_41MINI_CHAT_VERSION = os.getenv('GPT_41MINI_CHAT_VERSION')
-
+GPT_API_KEY = os.getenv('GPT_API_KEY')
+GPT_ENDPOINT = os.getenv('GPT_ENDPOINT')
+GPT_VERSION = os.getenv('GPT_VERSION')
+#modelは['gpt-4.1','gpt-4.1-mini','o4-mini']から選択
 #OpenAI設定
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 #監視感覚

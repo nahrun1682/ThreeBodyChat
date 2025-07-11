@@ -12,6 +12,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import AzureChatOpenAI
 from utils.langfuse_client import handler as langfuse_handler
+from utils.llm_factory import create_azure_llm
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -35,15 +36,10 @@ class ResponderChoice(BaseModel):
 
 parser = PydanticOutputParser(pydantic_object=ResponderChoice)
 
-llm = AzureChatOpenAI(
-    openai_api_version=config.GPT_41MINI_CHAT_VERSION,
-    azure_deployment=config.GPT_41MINI_CHAT_MODEL,
-    model=config.GPT_41MINI_CHAT_MODEL,
-    azure_endpoint=config.GPT_41MINI_CHAT_ENDPOINT,
-    openai_api_key=config.GPT_41MINI_CHAT_KEY,
-    temperature=0.0,
-    max_tokens=100,
-)
+orch_model = 'gpt-4.1-mini'  # Orchestrator用のモデル名
+orch_llm = create_azure_llm(
+    model_name=orch_model,
+    temperature=0.0)
 
 def assign_responder(user_msg=None):
     """
@@ -61,7 +57,7 @@ def assign_responder(user_msg=None):
     logging.info(f"assign_responder: LLM判定開始 user_msg='{user_msg}'")
     
     # LLMに投げて判定
-    result = llm.invoke(
+    result = orch_llm.invoke(
         [{"role": "system", "content": prompt}],
         config={
                 "callbacks": [langfuse_handler],

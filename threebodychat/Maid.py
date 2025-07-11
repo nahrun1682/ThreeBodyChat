@@ -5,10 +5,10 @@ import asyncio
 import redis
 import logging
 from threebodychat.BaseBot import BaseBot
-from langchain_openai import AzureChatOpenAI
 from prompts.prompt_maid import get_maid_systemPrompt
 from langchain_core.messages import SystemMessage, HumanMessage
 from utils.langfuse_client import handler as langfuse_handler
+from utils.llm_factory import create_azure_llm
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -23,14 +23,8 @@ logging.basicConfig(
 
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
-maid_llm = AzureChatOpenAI(
-    openai_api_version=config.GPT_41MINI_CHAT_VERSION,
-    azure_deployment=config.GPT_41MINI_CHAT_MODEL,
-    azure_endpoint=config.GPT_41MINI_CHAT_ENDPOINT,
-    openai_api_key=config.GPT_41MINI_CHAT_KEY,
-    temperature=0.7,
-    max_tokens=2000,
-)
+maid_model = 'o4-mini'  # Maid用のモデル名
+maid_llm = create_azure_llm(model_name=maid_model)
 
 class MaidBot(BaseBot):
     def __init__(self):
