@@ -2,7 +2,7 @@
 import discord
 import asyncio
 import logging
-import redis                                              # ← CHANGE: Redis を直接インポート
+import redis                                              
 from utils.memory_factory import create_redis_memory
 from threebodychat import config
 

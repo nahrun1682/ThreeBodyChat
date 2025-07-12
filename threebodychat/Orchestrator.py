@@ -133,7 +133,7 @@ async def on_message(message):
     else:
         logging.warning("先手Botの返答が取得できませんでした")
 
-async def wait_for_bot_reply(request_id, bot_name, timeout=10):
+async def wait_for_bot_reply(request_id, bot_name, timeout=30):
     """
     先手Botの返答をRedisで待つ（request_idで一意化）
     """
