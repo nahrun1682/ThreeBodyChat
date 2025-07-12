@@ -13,6 +13,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import AzureChatOpenAI
 from utils.langfuse_client import handler as langfuse_handler
 from utils.llm_factory import create_azure_llm
+from utils.log_utils import truncate
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -54,7 +55,7 @@ def assign_responder(user_msg=None):
         return choice
     
     prompt = get_orchestrator_prompt(user_msg, parser.get_format_instructions())
-    logging.info(f"assign_responder: LLM判定開始 user_msg='{user_msg}'")
+    logging.info(f"assign_responder: LLM判定開始 user_msg='{truncate(user_msg)}'")
     
     # LLMに投げて判定
     result = orch_llm.invoke(
@@ -111,25 +112,25 @@ async def on_message(message):
     # どちらが先手かOrchestratorで判定
     first = assign_responder(user_msg)
     second = "Master" if first == "Maid" else "Maid"
-    logging.info(f"先手: {first}, 後手: {second} → {user_msg}")
+    logging.info(f"先手: {first}, 後手: {second} → {truncate(user_msg)}")
 
     # 先手Botのキューに「channel_id|user_id|request_id|ユーザー発言のみ」を送信
-    logging.info(f"write_to_queue: {first.lower()}_queue, channel_id={channel_id}, user_id={user_id}, request_id={request_id}, user_msg={user_msg}")
+    logging.info(f"write_to_queue: {first.lower()}_queue, channel_id={channel_id}, user_id={user_id}, request_id={request_id}, user_msg={truncate(user_msg)}")
     write_to_queue(f"{first.lower()}_queue", channel_id, user_id, f"{request_id}|{user_msg}")
 
     # 先手Botの返答を待つ（最大10秒）
     logging.info(f"wait_for_bot_reply: request_id={request_id}, bot_name={first}, timeout=10")
     reply = await wait_for_bot_reply(request_id, first, timeout=10)
-    logging.info(f"wait_for_bot_reply result: {reply}")
+    logging.info(f"wait_for_bot_reply result: {truncate(reply)}")
     if reply is not None:
         # 返答が整形済みでないかチェック（デバッグ用）
         if "ユーザー:" in reply or "先手:" in reply:
             logging.warning(f"Orchestrator: 先手Botの返答に整形済みテキストが混入: {reply}")
         # 後手Botのキューに「channel_id|user_id|request_id|ユーザー発言｜先手Botの生返答」を送信
         combined_msg = f"{request_id}|{user_msg}|{reply}"
-        logging.info(f"write_to_queue: {second.lower()}_queue, channel_id={channel_id}, user_id={user_id}, request_id={request_id}, combined_msg={combined_msg}")
+        logging.info(f"write_to_queue: {second.lower()}_queue, channel_id={channel_id}, user_id={user_id}, request_id={request_id}, combined_msg={truncate(combined_msg)}")
         write_to_queue(f"{second.lower()}_queue", channel_id, user_id, combined_msg)
-        logging.info(f"後手{second}に送信: {combined_msg}")
+        logging.info(f"後手{second}に送信: {truncate(combined_msg)}")
     else:
         logging.warning("先手Botの返答が取得できませんでした")
 
@@ -141,7 +142,7 @@ async def wait_for_bot_reply(request_id, bot_name, timeout=30):
     logging.info(f"wait_for_bot_reply: polling key={key}, timeout={timeout}")
     for i in range(timeout * 2):  # 0.5秒ごとに最大timeout秒待つ
         reply = r.get(key)
-        logging.debug(f"wait_for_bot_reply: poll {i}, key={key}, reply={reply}")
+        logging.debug(f"wait_for_bot_reply: poll {i}, key={key}, reply={truncate(reply)}")
         if reply:
             r.delete(key)
             logging.info(f"wait_for_bot_reply: got reply, deleted key={key}")
