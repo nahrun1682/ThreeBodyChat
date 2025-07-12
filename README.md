@@ -63,6 +63,9 @@ Orchestratorがユーザー発言をRedisキューに書き込み、Maid/Master 
 2. Redisサーバーの起動
    ```sh
    sudo service redis-server start
+
+   #起動確認
+   sudo systemctl status redis
    ```
 
 3. 動作確認
@@ -71,10 +74,22 @@ Orchestratorがユーザー発言をRedisキューに書き込み、Maid/Master 
    ```
    `PONG` と返ってくればOKです。
 
-> DockerでRedisを使いたい場合は
-> `docker run -d -p 6379:6379 --name redis redis`
-> でも起動できます。
+   > DockerでRedisを使いたい場合は
+   > `docker run -d -p 6379:6379 --name redis redis`
+   > でも起動できます。
 
+4. 各パラメタ確認
+   ```sh
+   # ポート取得
+   redis-cli config get port
+
+   # bind アドレス取得
+   redis-cli config get bind
+
+   # パスワード設定取得
+   redis-cli config get requirepass
+
+   ```
 ## 🧪 テストについて
 
 本プロジェクトでは、各BotやOrchestratorの主要な処理についてpytestによるユニットテストを用意しています。

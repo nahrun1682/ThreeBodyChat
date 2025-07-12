@@ -2,13 +2,12 @@ import discord
 import config
 import os
 import asyncio
-import redis
 import logging
 from threebodychat.BaseBot import BaseBot
-from langchain_openai import AzureChatOpenAI
 from prompts.prompt_master import get_master_systemPrompt
+from utils.llm_factory import create_azure_llm  # ← CHANGE: LLMファクトリをインポート
+from utils.memory_factory import create_redis_memory  # ← CHANGE: メモリー生成ファクトリをインポート
 from utils.langfuse_client import handler as langfuse_handler
-from utils.llm_factory import create_azure_llm
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -21,10 +20,7 @@ logging.basicConfig(
     ]
 )
 
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-
-master_model = 'o4-mini'  # Master用のモデル名
-master_llm = create_azure_llm(model_name=master_model)
+master_model = 'gpt-4.1'  # Master用のモデル名
 
 class MasterBot(BaseBot):
     def __init__(self):
@@ -33,30 +29,51 @@ class MasterBot(BaseBot):
             queue_name="master_queue",
             reply_key_prefix="reply_master_",
             reply_choices=["鹿だな", "やっぱ鹿だな"],
-            redis_conn=r,
             config=config,
             intents=discord.Intents.all()
         )
-        
-    def generate_reply(self, user_question, prev_bot_reply):
-        # マスターらしいプロンプトを組み立て
-        system_prompt = get_master_systemPrompt()
-        messages = [
-            {"role": "system", "content": system_prompt},
+        # ← CHANGE: LLM クライアントをインスタンス変数化
+        self.llm = create_azure_llm(model_name=master_model)
+
+    # ← CHANGE: generate_reply のシグネチャを拡張
+    def generate_reply(self, user_question, prev_bot_reply, history_msgs, memory):
+        """
+        history_msgs: 過去の Message オブジェクトリスト
+        memory: ConversationBufferMemory インスタンス
+        """
+        # ← CHANGE: 過去履歴を先頭に追加
+        logging.info(f"[Master] Loading history ({len(history_msgs)} messages)")
+        messages = history_msgs + [
+            {"role": "system", "content": get_master_systemPrompt()},
             {"role": "user",   "content": f"ユーザーの質問:「{user_question}」"}
         ]
         if prev_bot_reply:
             messages.append({"role": "user", "content": f"先手Bot(Maid)の返答:「{prev_bot_reply}」"})
-        
-        result = master_llm.invoke(
+        # ← optionally log history contents at DEBUG
+        for i, msg in enumerate(history_msgs):
+            logging.debug(f"[Master] history[{i}]: {msg.content}")
+
+        # ← CHANGE: LLM 呼び出し
+        result = self.llm.invoke(
             messages,
             config={
                 "callbacks": [langfuse_handler],
-                # 必要であればタグも metadata 内に渡せます
                 "metadata": {"langfuse_tags": ["Master"]}
-            })
+            }
+        )
+        reply = result.content.strip()
+        logging.info(f"[Master] Generated reply: {reply}")
 
-        return result.content.strip()
+        # ← CHANGE: メモリーに保存
+        logging.info(f"[Master] Saving to memory: input={'<prev>' if prev_bot_reply else user_question}, output={reply}")
+        memory.save_context(
+            {"input": user_question if prev_bot_reply is None else prev_bot_reply},
+            {"output": reply}
+        )
+        new_history = memory.load_memory_variables({})["chat_history"]
+        logging.info(f"[Master] New history count: {len(new_history)}")
+
+        return reply
 
 client = MasterBot()
 
