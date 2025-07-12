@@ -3,7 +3,7 @@
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain.memory import ConversationBufferWindowMemory
 
-def create_redis_memory(redis_url: str, key_prefix: str, session_id: str, window_size: int = 10) -> ConversationBufferWindowMemory:
+def create_redis_memory(redis_url: str, key_prefix: str, session_id: str, window_size: int = 20) -> ConversationBufferWindowMemory:
     """
     RedisChatMessageHistory を最新のコミュニティ版で利用しつつ、
     直近 k 件だけを保持するウィンドウメモリーを作成しますわ。

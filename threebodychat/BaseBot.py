@@ -17,19 +17,21 @@ class BaseBot(discord.Client):
         self.bot_name = bot_name  # Botの名前（ログや識別用）
 
         # ← CHANGE: redis_conn 引数を廃止し、自前で接続を初期化
+        # Redis接続は制御用DBを使用
         self.r = redis.Redis(
             host=config.REDIS_HOST,
             port=config.REDIS_PORT,
-            db=config.REDIS_DB,
+            db=config.REDIS_CTRL_DB,
             password=config.REDIS_PASSWORD or None,
             decode_responses=True,
         )
 
         # ← CHANGE: メモリー用 Redis URL を組み立て
+        # メモリ用Redis URLにはメモリDBを指定
         if config.REDIS_PASSWORD:
-            self.redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
+            self.redis_url = f"redis://:{config.REDIS_PASSWORD}@{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_MEMORY_DB}"
         else:
-            self.redis_url = f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_DB}"
+            self.redis_url = f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}/{config.REDIS_MEMORY_DB}"
 
         # ← CHANGE: メモリー用 key_prefix（namespace 代替）を設定
         self.memory_namespace = f"threebodychat_{bot_name.lower()}:"

@@ -30,5 +30,8 @@ LANGFUSE_HOST_URL = os.getenv('LANGFUSE_HOST_URL')
 # Redis 接続情報
 REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6379
-REDIS_DB   = 0
-REDIS_PASSWORD = "" 
+# 制御用 Redis データベース (Orchestrator⇔Bot のキュー／返信管理)
+REDIS_CTRL_DB   = 0
+# メモリ用 Redis データベース (LLM 履歴保存用)
+REDIS_MEMORY_DB = 1
+REDIS_PASSWORD = ""
