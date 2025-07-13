@@ -17,25 +17,46 @@
 
 ```bash
 ThreeBodyChat/
-├── Dockerfile
+├── .dockerignore
+├── .env
+├── .gitignore
+├── .python-version
 ├── compose.yml
+├── Dockerfile
 ├── poetry.toml
 ├── pyproject.toml
 ├── poetry.lock
+├── pytest.ini
 ├── README.md
 ├── run_all.sh                # Bot一括起動・多重起動防止スクリプト
-├── logs/
-│   └── threebodychat.log     # 全Bot共通のログファイル
-├── tests/                    # pytest用テストコード
+├── logs/                     # 全Bot共通ログディレクトリ
+│   └── threebodychat.log     # 実行時ログ
+├── notebooks/                # ノートブック例・テスト
+│   ├── godzilla.md
+│   ├── llm_test.ipynb
+│   └── response_godzilla.pkl
+├── prompts/                  # プロンプトテンプレート
+│   ├── prompt_maid.py
+│   ├── prompt_master.py
+│   └── prompt_orchestrator.py
+├── tests/                    # pytest テストコード
 │   ├── test_orchestrator.py
+│   ├── test_basebot.py
 │   ├── test_Maid.py
 │   └── test_Master.py
-└── threebodychat/
-    ├── __init__.py
-    ├── Maid.py               # メイドBotの実装
-    ├── Master.py             # 師匠Botの実装
-    ├── Orchestrator.py       # 司令塔Bot（制御・分配・Redis仲介）
-    └── config.py             # Discordトークン・設定
+├── threebodychat/            # Bot コード
+│   ├── __init__.py
+│   ├── BaseBot.py
+│   ├── Maid.py
+│   ├── Master.py
+│   ├── Orchestrator.py
+│   └── config.py
+└── utils/                    # ユーティリティモジュール
+    ├── langfuse_client.py
+    ├── log_utils.py
+    ├── llm_factory.py
+    ├── memory_factory.py
+    └── tools.py
 ```
 
 - **Orchestrator.py** … ユーザー発言の受信・Bot割り振り・Redis制御の中枢

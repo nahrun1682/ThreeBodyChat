@@ -17,6 +17,10 @@ langchain-openai = "^0.3.27"
 langchain-core = "^0.3.66"
 langfuse = "^3.0.8"
 pynacl = "^1.5.0"
+langchain-google-community = "^2.0.7"
+browser-use = "^0.5.4"
+playwright = "^1.53.0"
+maincontentextractor = "^0.0.4"
 
 
 [tool.poetry.group.dev.dependencies]
