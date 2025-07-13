@@ -8,6 +8,8 @@ from prompts.prompt_master import get_master_systemPrompt
 from utils.llm_factory import create_azure_llm  # ← CHANGE: LLMファクトリをインポート
 from utils.memory_factory import create_redis_memory  # ← CHANGE: メモリー生成ファクトリをインポート
 from utils.langfuse_client import handler as langfuse_handler
+from utils.tools import google_tool
+from langchain.agents import initialize_agent, AgentType
 
 # ログディレクトリ作成
 os.makedirs("logs", exist_ok=True)
@@ -34,6 +36,13 @@ class MasterBot(BaseBot):
         )
         # ← CHANGE: LLM クライアントをインスタンス変数化
         self.llm = create_azure_llm(model_name=master_model)
+        # 検索ツール付きエージェント化
+        self.agent = initialize_agent(
+            tools=[google_tool],
+            llm=self.llm,
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            verbose=False,
+        )
 
     # ← CHANGE: generate_reply のシグネチャを拡張
     def generate_reply(self, user_question, prev_bot_reply, history_msgs, memory):
@@ -54,14 +63,19 @@ class MasterBot(BaseBot):
             logging.debug(f"[Master] history[{i}]: {msg.content}")
 
         # ← CHANGE: LLM 呼び出し
-        result = self.llm.invoke(
+        # エージェント呼び出し
+        raw = self.agent.invoke(
             messages,
             config={
                 "callbacks": [langfuse_handler],
                 "metadata": {"langfuse_tags": ["Master"]}
             }
         )
-        reply = result.content.strip()
+        if isinstance(raw, dict):
+            reply_text = raw.get("output", "")
+        else:
+            reply_text = getattr(raw, 'content', str(raw))
+        reply = reply_text.strip()
         logging.info(f"[Master] Generated reply: {reply}")
 
         # ← CHANGE: メモリーに保存
